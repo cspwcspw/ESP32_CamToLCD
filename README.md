@@ -32,7 +32,7 @@ All are cheap goodies from Banggood.
 
 * And an [ESP32 Devkit](https://www.banggood.com/ESP32-Development-Board-WiFiBluetooth-Ultra-Low-Power-Consumption-Dual-Cores-ESP-32-ESP-32S-Board-p-1109512.html).  
 
-I didn't do a schematic. Instead, I wrote a more general document [ESP_32_Pin_Usage](https://github.com/cspwcspw/ESP32_CamToLCD/blob/master/ESP32_Pin_Usage.pdf) which summarizes some pin usage limitations I found helpful.  The exact pin connections for this project at the end of that document.
+I didn't do a schematic. Instead, I wrote a more general document [ESP32_Pin_Usage](https://github.com/cspwcspw/ESP32_CamToLCD/blob/master/ESP32_Pin_Usage.pdf) which summarizes some pin usage limitations I found helpful.  The exact pin connections for this project at the end of that document.
 
 ## The Camera Side of Things
 
@@ -90,7 +90,7 @@ so when the I2S hardware gets to the end of a scanline and
 generates a "DMABuffer Ready" interrupt, it in turn calls
 back to the main program to deal with the scanline.  
 
-So in summary, my camera code is a direct descendant of iggr's I2S camera 
+So in summary, my camera code is a direct descendant of igrr's I2S camera 
 project with a few conceptual differences:
 * The idea is to consume or dispose of scanlines as they arrive. 
 * I don't allocate memory or pack scanlines into a frame buffer.
@@ -157,7 +157,7 @@ We flush out the last remaining scanline (if its not already flushed),
 we count the frame, reset the I2S engine, occasionally print diagnostic information, and even poll for user input to change the camera mode, etc.  
 
 If either callback occurs during this time, we'll 
-be put into the _**Overrun**_ state.  Once we're done all the 
+be put into the _**Overrun**_ state.  Once we've done all the 
 wrap-up tasks for the current frame, we've either beaten our 
 deadline and can immediately go back to _**Opening**_ where we'll 
 prime the LCD for the next frame.  If we've overrun, we're lost 
@@ -184,9 +184,9 @@ GPIO pin numbers for the data bus we can pre-compute all the bit-setting masks.
 
 So we set up a 256-entry table.  Sending a byte onto the bus requires
 clearing the bus, using the byte as an array index to find the bitmask 
-that will set the appropriate buts. We can then use a direct port write 
+that will set the appropriate bits. We can then use a direct port write 
 to output the byte.  Once the byte is on the bus we need to strobe high
-the LCD Write line. An easy trick of taking it low at the same time
+the LCD Write line. A  trick of taking LCD_Write low at the same time
 as we take other bus lines low means writing a byte becomes a really
 efficient macro:
 ```
@@ -214,17 +214,18 @@ void SinkDMABuf(int xres, DMABuffer *buf) {
 
 We said earlier that we expect 6000 scanlines per second. 
 So we need to handle the scanline in less than 166 microseconds.  We
-put timing measurements around the call to this method, ane measured just under 100 microseconds to send out 640 bytes 
+put timing measurements around the call to this method, and 
+measured just under 100 microseconds to send out 640 bytes 
 (each pixel is two bytes). 
 
-6000 x 100 microsec is about 600ms. So this hotspot method accounts for 
+6000 calls at about100 microsec each is 600ms. So this hotspot method accounts for 
 about 60% of our processor time on the core that we're on.
 
 ## Summary
 
-We kept the interrupt routines short, and we don't fall foul of the 
-Watchdog Timer. We don't use intermediate buffer memory,
-we don't do format conversion of the data.  
+We kept the interrupt routines short, so we don't fall foul of the 
+Watchdog Timer. We don't need intermediate buffer memory,
+and we don't do format conversion of the data. 
 
 A fun project, I learned plenty, and hope you do too. For what we get for 
 about $7, the ESP32 is amazing!  
