@@ -1,6 +1,9 @@
 
 #pragma once
 
+// Pete Wentworth cspwcspw@gmail.com.  Sept 2018
+// Released under Apache License 2.0
+
 // Parts of this code (the LCD setup, drawing rectangles, clearing the screen) started from code at
 // https://www.banggood.com/2_4-Inch-TFT-LCD-Shield-240320-Touch-Board-Display-Module-With-Touch-Pen-For-Arduino-UNO-p-1171082.html
 // LCD_Touch\2.4inch_Arduino_HX8347G_V1.0\Arduino Demo_ArduinoUNO&Mega2560\Example01-Simple test\Simple test for UNO\_HX8347_uno
@@ -315,14 +318,11 @@ class LCD
       // Unrolling the loop doesn't make it go any faster.
 
       unsigned char *p = buf->buffer;      // Pointer to start of data
-      unsigned char *limit = p + xres * 4 - 0; // Pointer just beyond end of data
 
-      LCD_DC_HIGH();                       // Hey LCD! Expect some data!
-
-      while (p < limit) {
-        Write_Byte(*p);         // Every second byte of the DMA buffer has pixel data
-        Write_Byte(*(p + 2));
-        p += 4;
+      LCD_DC_HIGH();                       // Bytes are data, not LCD commands.
+      for (int i = 0; i < xres * 4; i += 4) {
+        Write_Byte(p[i]);        // Every second byte of the DMA buffer has pixel data
+        Write_Byte(p[i + 2]);
       }
     }
 

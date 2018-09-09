@@ -1,9 +1,10 @@
-//parts of this code are taken from
-//https://github.com/igrr/esp32-cam-demo
-//by Ivan Grokhotkov
-//released under Apache License 2.0
-//
-// Pete: I further hacked the code, Sept 2018.
+
+// Pete Wentworth cspwcspw@gmail.com.  Sept 2018
+// Released under Apache License 2.0 
+// Big chunks of the camera-side code were lifted from or inspired by
+// https://github.com/bitluni/ESP32CameraI2S by Bitluni, and 
+// https://github.com/igrr/esp32-cam-demo by Ivan Grokhotkov (igrr)
+// The LCD side of things started from some driver code on the Banggood site.
 
 #pragma once
 

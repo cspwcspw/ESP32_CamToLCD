@@ -1,4 +1,8 @@
 #pragma once
+
+// Pete Wentworth cspwcspw@gmail.com.  Sept 2018
+// Released under Apache License 2.0 
+
 #include "Arduino.h"
 #include<stdarg.h>
 
@@ -72,9 +76,8 @@ extern DebugPort debug;
 // Another way to debug is to directly toggle a GPIO pin and
 // watch it with a LED, a logic analyzer, or a scope.
 
-// #define DebuggingPin
-#ifdef DebuggingPin
-#define debugPin        13
+// #define debugPin  13
+#ifdef debugPin
   #define debugSetup()    pinMode(debugPin, OUTPUT)
   #define debugHigh()     digitalWrite(debugPin, HIGH)
   #define debugLow()      digitalWrite(debugPin, LOW)

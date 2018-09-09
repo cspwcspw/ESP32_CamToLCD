@@ -3,8 +3,11 @@
 
 // Get my OV7670 camera to deliver frames to my ILI9341 TFT LCD.
 // Big chunks of the camera-side code were lifted from or inspired by
-// the ESP_I2S_Camera project by Ivan Grokhotkov (igrr)
+// https://github.com/bitluni/ESP32CameraI2S by Bitluni, and 
+// https://github.com/igrr/esp32-cam-demo by Ivan Grokhotkov (igrr)
 // The LCD side of things started from some driver code on the Banggood site.
+
+// Released under Apache License 2.0 
 
 // Uncomment this define to get some debugging, but perhaps slow down XCLK a bit first ...
 //#define DebuggingPort
@@ -25,13 +28,13 @@ int missedBlocks = 0, blockCount = 0, framesGrabbed = 0;
 
 // The control logic is a state machine:
 enum State {
-  Waiting, // We don't know where we are, and need a VSYNC to synchronize ourselves.
-  Opening, // As soon as we hit this state we'll prepare the sink: e.g. send a frame header, open a file, set up LCD etc.
+  Lost,    // We don't know where we are, and need a VSYNC to synchronize ourselves.
+  Priming, // When we hit this state we'll prime the sink: e.g. send a frame header, open a file, set up LCD etc.
   Running, // Queueing blocks as they arrive in the interrupt handlier, and sinking the data in the main loop.
-  Closing, // We got a VSYNC. We can close the frame / close a file, restart the I2S engine, print stats, etc.
+  Wrapup,  // We got a VSYNC. We can wrap up the frame / close a file, restart the I2S engine, print stats, etc.
   Overrun  // If either VSYNC or a scanline interrupts before we're finalized, we've lost the beat.
 };
-char *stateNames[] = {"Waiting", "Opening", "Running", "Closing", "Overrun"};
+char *stateNames[] = {"Lost", "Priming", "Running", "Wrapup", "Overrun"};
 State theState;
 
 //******* The camera. SIOD and SIOC pins need pull-ups to Vcc(3.3v) (4.7k ohms seems OK) **********
@@ -53,10 +56,10 @@ void IRAM_ATTR sinkOneScanline(DMABuffer *buf)
 
   switch (theState) {
 
-    case Waiting:  // We just stay Waiting.  Only a VSYNC can rescue us.
+    case Lost:  // We just stay Lost.  Only a VSYNC can rescue us.
       break;
 
-    case Opening:
+    case Priming:
 #ifdef DebuggingPort
       if (queuedBlock != 0) { // problem, we've not fully dealt with the last buffer yet.
         debug.print('f');
@@ -74,7 +77,7 @@ void IRAM_ATTR sinkOneScanline(DMABuffer *buf)
       queuedBlock = buf;
       break;
 
-    case Closing:
+    case Wrapup:
       missedBlocks++;
       theState = Overrun;
       break;
@@ -101,21 +104,21 @@ void IRAM_ATTR handleVSYNC()
 
 
   switch (theState) {
-    case Waiting:
-      theState = Opening;  // The main loop can start preparing to send the next frame.
+    case Lost:
+      theState = Priming;  // The main loop can start preparing to send the next frame.
       break;
 
-    case Opening:
+    case Priming:
       debug_print(".");
-      // Serial.println("Unexpected VSYNC when we are in state Opening");
-      theState = Waiting;
+      // Serial.println("Unexpected VSYNC when we are in state Priming");
+      theState = Lost;
       break;
 
     case Running:
-      theState = Closing;  // Tell the main loop we're at the end of a frame.
+      theState = Wrapup;  // Tell the main loop we're at the end of a frame.
       break;
 
-    case Closing:
+    case Wrapup:
       debug_print("M");
       theState = Overrun;
       break;
@@ -251,7 +254,7 @@ void handleUserInput()
 
 long lastFpsTime = 0;
 int fpsReportAfterFrames = 100;
-int etHotspot;  // Elapsed microsecs spent in the last call to the hotspot code
+long etHotspot;  // Elapsed microsecs spent in recent calls to the hotspot code
 
 int regTry = 0;
 int testKind = 0;  // what kind of testimage do we want?
@@ -268,9 +271,9 @@ void loop(void)
 
   switch (theState)
   {
-    case Waiting: break; // Just be patient and wait to synchronize with the start of the next frame.
+    case Lost: break; // Just be patient and wait to synchronize with the start of the next frame.
 
-    case Opening:        // Set up to sink the next frame.
+    case Priming:        // Set up to sink the next frame.
       {
         theCam->i2sRestart();
         // Tell the LCD where to put the image on the screen.  Center it.
@@ -286,15 +289,15 @@ void loop(void)
       {
         DMABuffer *buf = queuedBlock;
         if (buf) {
-          long t0 = micros();    // collect some diagnostic timing information
+          long t0 = micros();    // Accumulate some diagnostic timing information
           theLCD->SinkDMABuf(theCam->xres, buf);
-          etHotspot = micros() - t0;
+          etHotspot += (micros() - t0);
           queuedBlock = 0;      // Indicate that we're done with this buffer
         }
       }
       break;
 
-    case Closing:  // Clear any queued block and finalize things before allowing the next frame to begin
+    case Wrapup:  // Clear any queued block and finalize things before allowing the next frame to begin
     case Overrun:  // Time after a VSYNC and before the next scanline is our biggest chunk of idle time,
       { // so we do a bit of other housekeeping here too, like polling for user input.
 
@@ -309,18 +312,18 @@ void loop(void)
         if (++framesGrabbed % fpsReportAfterFrames == 0) {
           long timeNow = millis();
           double fps = (fpsReportAfterFrames * 1000.0) / (timeNow - lastFpsTime);
-          Serial.printf("Mode:%dx%d  Last %d frames = %.1f FPS.  Hotspot = %d microsecs\n",
-                        theCam->xres, theCam->yres, fpsReportAfterFrames, fps, etHotspot);
-
+          Serial.printf("Mode:%dx%d  Last %d frames = %.1f FPS.  Hotspot avg = %d microsecs\n",
+                        theCam->xres, theCam->yres, fpsReportAfterFrames, fps, etHotspot / (fpsReportAfterFrames * theCam->yres));
+          etHotspot = 0;
           lastFpsTime = timeNow;
         }
         handleUserInput();
         // If we got this all done before the next scanline arrived ...
         if (theState != Overrun) {  // Yay!  We got finalized before the deadline.
-          theState = Opening;       // Just go back and expect scanlines to appear for the next frame.
+          theState = Priming;       // Just go back and expect scanlines to appear for the next frame.
         }
         else {                      // Oops, we'll have to miss a frame and wait for the next vsync
-          theState = Waiting;
+          theState = Lost;
         }
       }
       break;

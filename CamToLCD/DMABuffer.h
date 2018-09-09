@@ -1,5 +1,11 @@
 #pragma once
 
+// Pete Wentworth cspwcspw@gmail.com.  Sept 2018
+// Released under Apache License 2.0 
+// Big chunks of the camera-side code were lifted from or inspired by
+// https://github.com/bitluni/ESP32CameraI2S by Bitluni, and 
+// https://github.com/igrr/esp32-cam-demo by Ivan Grokhotkov (igrr)
+
 #include "rom/lldesc.h"
 
 class DMABuffer

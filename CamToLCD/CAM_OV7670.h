@@ -1,6 +1,12 @@
 
 #pragma once
 
+// Pete Wentworth cspwcspw@gmail.com.  Sept 2018
+// Released under Apache License 2.0 
+// Big chunks of the camera-side code were lifted from or inspired by
+// https://github.com/bitluni/ESP32CameraI2S by Bitluni, and 
+// https://github.com/igrr/esp32-cam-demo by Ivan Grokhotkov (igrr)
+
 // The all-important reference manual for the camera:
 // [1] http://web.mit.edu/6.111/www/f2016/tools/OV7670_2006.pdf
 
