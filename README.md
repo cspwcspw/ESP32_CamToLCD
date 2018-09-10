@@ -124,8 +124,8 @@ plus some other things that cause a state change.
 enum State {
   Lost,    // We don't know where we are, and need a VSYNC to synchronize ourselves.
   Priming, // When we hit this state we'll prime the sink: e.g. send a frame header, open a file, set up LCD etc.
-  Running, // Queueing blocks as they arrive in the interrupt handlier, and sinking the data in the main loop.
-  Wrapup, // We got a VSYNC. We can wrap up the frame / close a file, restart the I2S engine, print stats, etc.
+  Running, // Queueing blocks as they arrive in the interrupt handler, and sinking the data in the main loop.
+  Wrapup,  // We got a VSYNC. We can wrap up the frame / close a file, restart the I2S engine, print stats, etc.
   Overrun  // If either VSYNC or a scanline interrupts before we're finalized, we've lost the beat.
 };
 ```
@@ -183,11 +183,11 @@ Depending on which GPIOs are wired up to each LCD data bit, we can construct a
 Since there are only 256 possible bytes to send to the LCD, once we know 
 GPIO pin numbers for the data bus we can pre-compute all the bit-setting masks.
 
-So we pre-compute a 256-entry table.  Sending a byte onto the bus requires
+So at initialization we compute a 256-entry table.  Sending a byte onto the bus requires
 clearing the bus, using the byte as an array index to find the bitmask 
-that will set the appropriate buts. We can then use a direct port write 
+that will set the appropriate bits. We can then use a direct port write 
 to output the byte.  Once the byte is on the bus we need to strobe high
-the LCD Write line. An easy trick of taking it low at the same time
+the LCD Write line. A trick of taking it low at the same time
 as we take other bus lines low means writing a byte becomes a really
 efficient macro:
 ```
@@ -211,7 +211,8 @@ The other important method in the LCD code is the code for consuming the DMABuff
 
 We said earlier that we expect 6000 scanlines per second. 
 So we need to handle the scanline in less than 166 microseconds.  We
-put timing measurements around the call to this method, ane measured just under 100 microseconds to send out 640 bytes 
+put timing measurements around the call to this method, 
+and measured just under 100 microseconds to send out 640 bytes 
 (each pixel is two bytes). 
 
 6000 x 100 microsec is about 600ms. So this hotspot method accounts for 
