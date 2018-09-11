@@ -259,6 +259,12 @@ long etHotspot;  // Elapsed microsecs spent in recent calls to the hotspot code
 int regTry = 0;
 int testKind = 0;  // what kind of testimage do we want?
 
+// Timing: In the OV7670 spec sheet, timings are defined in terms of tLine periods.
+// A VGA frame arrives in 510 x tLine, 480 of which are scanlines, and 30 x tLine between frames.
+// At 25fps, tLine = 78.4 microsecs (this depends on the 20MHz XCLK we feed to the camera).  
+// At QVGA, time between scanlines is 2 x tLine, i.e. scanlines arrive 156.8 micros apart. 
+// After the last scanline we have 10 x tLine periods before VSYNC, and then another 
+// 20 x tLine periods to wrap up the frame.
 
 void loop(void)
 {
@@ -288,6 +294,7 @@ void loop(void)
     case Running:         // If there is a queued block, send it to the LCD
       {
         DMABuffer *buf = queuedBlock;
+        
         if (buf) {
           long t0 = micros();    // Accumulate some diagnostic timing information
           theLCD->SinkDMABuf(theCam->xres, buf);
@@ -297,23 +304,17 @@ void loop(void)
       }
       break;
 
-    case Wrapup:  // Clear any queued block and finalize things before allowing the next frame to begin
-    case Overrun:  // Time after a VSYNC and before the next scanline is our biggest chunk of idle time,
-      { // so we do a bit of other housekeeping here too, like polling for user input.
-
-        DMABuffer *buf = queuedBlock;
-        if (buf) {
-          // send the last scan row to the display if there is one
-          theLCD->SinkDMABuf(theCam->xres, buf);
-          queuedBlock = 0;        // Indicate that we're done with this buffer
-        }
+    case Wrapup:  // Finalize things before the next frame begins.
+    case Overrun: // Time after a VSYNC and before the next scanline is our biggest chunk of idle time,
+      {           // so we do a bit of other housekeeping here too, like polling for user input.
 
         // Housekeeping
         if (++framesGrabbed % fpsReportAfterFrames == 0) {
           long timeNow = millis();
           double fps = (fpsReportAfterFrames * 1000.0) / (timeNow - lastFpsTime);
-          Serial.printf("Mode:%dx%d  Last %d frames = %.1f FPS.  Hotspot avg = %d microsecs\n",
-                        theCam->xres, theCam->yres, fpsReportAfterFrames, fps, etHotspot / (fpsReportAfterFrames * theCam->yres));
+          Serial.printf("Mode:%dx%d; Last %d frames = %.1f FPS;  Hotspot = %d micros;\n",
+                        theCam->xres, theCam->yres, fpsReportAfterFrames, fps, 
+                        etHotspot / (fpsReportAfterFrames * theCam->yres));
           etHotspot = 0;
           lastFpsTime = timeNow;
         }

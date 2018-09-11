@@ -61,8 +61,8 @@ cause a VSYNC interrupt.  This allows us to deal with the
 finalization of the current frame and set up for the start of the next frame.  
 
 At 25 frames per second, 320x240, we get _**6000**_ scanlines
-arriving per second. So we have about _**166**_ microseconds between 
-successive scanline interrupts.
+arriving per second. Allowing some padding between frames, 
+we have about _**156**_ microseconds between successive scanline interrupts.
 
 We can also expect 25 VSYNC interrupts per second.   
 
@@ -114,7 +114,8 @@ It sets up the camera mode, sets up the LCD, and starts the camera.
 Interrupts start pouring in, each with a DMABuffer that holds
 a scanline of pixel data.  After some scanlines we get a VSYNC.
 
-I like to organize complex logic like this as a state machine. So we consider the different states the system could be in,
+I like to organize complex logic like this as a state machine. 
+So we consider the different states the system could be in,
 and what events or processes should move the state machine to another state.  
 
 My design identified five different states, and the two interrupt events,
@@ -153,7 +154,9 @@ the lost data.
 
 A VSYNC finally take us out of the _**Running**_ state to _**Wrapup**_ 
 state.  This is when we have the most time available in the main loop. 
-We flush out any remaining buffer, we count the frame, reset the I2S engine,
+We assume the final scanline has already been flushed (there is a
+considerable timing gap before VSYNC) 
+we count the frame, reset the I2S engine,
 occasionally print diagnostic information, and even poll for user input 
 to change the camera mode or tweak some camera register settings.  
 
@@ -210,7 +213,7 @@ The other important method in the LCD code is the code for consuming the DMABuff
 ```
 
 We said earlier that we expect 6000 scanlines per second. 
-So we need to handle the scanline in less than 166 microseconds.  We
+So we need to handle the scanline in less than 156 microseconds.  We
 put timing measurements around the call to this method, 
 and measured just under 100 microseconds to send out 640 bytes 
 (each pixel is two bytes). 
