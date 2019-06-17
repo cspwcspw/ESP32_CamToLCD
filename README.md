@@ -16,7 +16,7 @@ camera the screen, so no format conversion is required.
 
 I discuss some key overview ideas here to help clarify what I did.  
 
-Thes rest of this document is in sections:
+The rest of this document is in sections:
 * The Hardware,
 * The Camera Side of Things,
 * The Main Program,
